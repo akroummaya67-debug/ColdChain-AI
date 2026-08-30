@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 import folium
 from streamlit_folium import st_folium
 
@@ -66,35 +65,44 @@ else:
     destination_coords = [25.7800, -80.1700]
     alt_coords = [25.7500, -80.2000]
 
-# Trigger Analysis
+# Trigger Analysis (Direct execution for Cloud Deployment)
 if st.sidebar.button("Run AI Thermal Analysis", type="primary", use_container_width=True):
     try:
         primary_route = [origin_coords, destination_coords]
         alternative_route = [origin_coords, alt_coords]
 
-        payload = {
-            "cargo_type": cargo_type,
-            "max_safe_temp": max_safe_temp,
-            "primary_route_coords": primary_route,
-            "alternative_route_coords": alternative_route
-        }
-
         with st.spinner("Fetching FortyGuard surface heat data & evaluating AI decision..."):
-            response = requests.post("http://127.0.0.1:8000/analyze-route", json=payload)
+            from fortyguard import get_route_thermal_data
+            from agent import evaluate_thermal_logistics
 
-        if response.status_code == 200:
+            primary_data = get_route_thermal_data(primary_route)
+            alt_data = get_route_thermal_data(alternative_route)
+
+            ai_decision = evaluate_thermal_logistics(
+                cargo_type=cargo_type,
+                max_safe_temp=max_safe_temp,
+                primary_temp=primary_data['avg_temperature'],
+                alt_temp=alt_data['avg_temperature']
+            )
+
+            response_json = {
+                "cargo_type": cargo_type,
+                "max_safe_temp": max_safe_temp,
+                "primary_route": primary_data,
+                "alternative_route": alt_data,
+                "ai_agent_decision": ai_decision
+            }
+
             st.session_state.analysis_result = {
-                "data": response.json(),
+                "data": response_json,
                 "primary": primary_route,
                 "alt": alternative_route,
                 "city": selected_city,
                 "state": selected_state
             }
-        else:
-            st.error(f"Server Error {response.status_code}: {response.text}")
 
     except Exception as e:
-        st.error(f"Connection Error: Ensure FastAPI server is running on port 8000. Details: {e}")
+        st.error(f"Analysis Execution Error. Details: {e}")
 
 # Main Display Logic
 if st.session_state.analysis_result:
