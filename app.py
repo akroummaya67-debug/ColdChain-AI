@@ -71,21 +71,26 @@ if st.sidebar.button("Run AI Thermal Analysis", type="primary", use_container_wi
 
         with st.spinner("Fetching FortyGuard surface heat data & evaluating AI decision..."):
             from fortyguard import get_surface_temperature
-            from agent import evaluate_thermal_logistics
+            from agent import generate_thermal_decision
 
-            # استخدام اسم الدالة الصحيح الموجود في ملف fortyguard.py
             primary_temp = get_surface_temperature(primary_route[1][0], primary_route[1][1])
             alt_temp = get_surface_temperature(alternative_route[1][0], alternative_route[1][1])
 
             primary_data = {"avg_temperature": primary_temp}
             alt_data = {"avg_temperature": alt_temp}
 
-            ai_decision = evaluate_thermal_logistics(
-                cargo_type=cargo_type,
-                max_safe_temp=max_safe_temp,
-                primary_temp=primary_temp,
-                alt_temp=alt_temp
-            )
+            # تحديد التوصية الافتراضية بناءً على مقارنة الحرارة
+            recommendation = "TRIGGER_PROACTIVE_COOLING" if primary_temp > max_safe_temp else "PROCEED_PRIMARY"
+
+            agent_input = {
+                "cargo_type": cargo_type,
+                "max_safe_temp": max_safe_temp,
+                "primary_route": primary_data,
+                "alternative_route": alt_data,
+                "recommendation": recommendation
+            }
+
+            ai_decision = generate_thermal_decision(agent_input)
 
             response_json = {
                 "cargo_type": cargo_type,
