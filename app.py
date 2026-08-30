@@ -45,7 +45,6 @@ max_safe_temp = st.sidebar.number_input("Max Safe Surface Temp (°C)", value=40.
 st.sidebar.markdown("---")
 st.sidebar.header("📍 Route Location Selector")
 
-# Option to select from presets or type any custom US location
 location_mode = st.sidebar.radio("Location Mode", ["US Database Presets", "Custom US Coords/City"])
 
 if location_mode == "US Database Presets":
@@ -60,29 +59,32 @@ if location_mode == "US Database Presets":
 else:
     selected_state = "Custom State"
     selected_city = st.sidebar.text_input("Enter US City Name", "Miami, FL")
-    # Default coordinates fallback for custom inputs
     origin_coords = [25.7617, -80.1918]
     destination_coords = [25.7800, -80.1700]
     alt_coords = [25.7500, -80.2000]
 
-# Trigger Analysis (Direct execution for Cloud Deployment)
+# Trigger Analysis
 if st.sidebar.button("Run AI Thermal Analysis", type="primary", use_container_width=True):
     try:
         primary_route = [origin_coords, destination_coords]
         alternative_route = [origin_coords, alt_coords]
 
         with st.spinner("Fetching FortyGuard surface heat data & evaluating AI decision..."):
-            from fortyguard import get_route_thermal_data
+            from fortyguard import get_surface_temperature
             from agent import evaluate_thermal_logistics
 
-            primary_data = get_route_thermal_data(primary_route)
-            alt_data = get_route_thermal_data(alternative_route)
+            # استخدام اسم الدالة الصحيح الموجود في ملف fortyguard.py
+            primary_temp = get_surface_temperature(primary_route[1][0], primary_route[1][1])
+            alt_temp = get_surface_temperature(alternative_route[1][0], alternative_route[1][1])
+
+            primary_data = {"avg_temperature": primary_temp}
+            alt_data = {"avg_temperature": alt_temp}
 
             ai_decision = evaluate_thermal_logistics(
                 cargo_type=cargo_type,
                 max_safe_temp=max_safe_temp,
-                primary_temp=primary_data['avg_temperature'],
-                alt_temp=alt_data['avg_temperature']
+                primary_temp=primary_temp,
+                alt_temp=alt_temp
             )
 
             response_json = {
@@ -113,7 +115,6 @@ if st.session_state.analysis_result:
     
     st.success(f"Thermal Route Analysis Completed for **{res['city']} ({res['state']})**")
 
-    # Metrics Row
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Cargo Threshold", f"{data['max_safe_temp']} °C")
     m2.metric("Primary Route Avg Heat", f"{data['primary_route']['avg_temperature']} °C")
@@ -122,7 +123,6 @@ if st.session_state.analysis_result:
 
     st.markdown("---")
 
-    # Layout: Map & Decision
     col_map, col_agent = st.columns([2, 1])
 
     with col_map:
